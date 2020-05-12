@@ -1,0 +1,36 @@
+dist: xenial   # required for Python >= 3.7
+language: python
+
+python:
+  - "3.6"
+  - "3.7"
+  - "3.8"
+  - "pypy3"
+
+before_install:
+  - python --version
+
+install:
+  - pip install -U virtualenv
+  - virtualenv --python=python ../venv
+  - source ../venv/bin/activate
+  - which python
+  - python --version
+  - pip install -r requirements.txt
+  - pip install python-coveralls
+  - pip install -U "coverage<5.0.0"  # v5 is incompatible ATM.
+
+script:
+- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+      coverage run --concurrency=multiprocessing -m unittest discover . -v;
+  fi
+
+- if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then
+      python -m unittest discover . -v;
+  fi
+
+after_success:
+- if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then
+      coverage combine;
+      coveralls;
+  fi

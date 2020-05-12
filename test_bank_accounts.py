@@ -22,5 +22,5 @@ class TestBankAccounts(TestCase):
                 amount=Decimal("100.00"),
             )
 
-            self.assertEqual(app.get_balance(account_id1), -Decimal("100.00"))
+            self.assertEqual(app.get_balance(account_id1), Decimal("-100.00"))
             self.assertEqual(app.get_balance(account_id2), Decimal("100.00"))

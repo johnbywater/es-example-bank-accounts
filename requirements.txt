@@ -1,0 +1,1 @@
+eventsourcing==8.2.1

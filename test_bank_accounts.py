@@ -40,7 +40,7 @@ class TestBankAccounts(TestCase):
             account_id2 = app.create_account()
 
             # Transfer funds.
-            app.tranfer_funds(
+            app.transfer_funds(
                 debit_account_id=account_id1,
                 credit_account_id=account_id2,
                 amount=Decimal("100.00"),

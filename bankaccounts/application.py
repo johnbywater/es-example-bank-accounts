@@ -31,7 +31,7 @@ class BankAccountApplication(SimpleApplication):
         account.append_transaction(-amount)
         self.save(account)
 
-    def tranfer_funds(self, debit_account_id: UUID, credit_account_id: UUID, amount: Decimal) -> None:
+    def transfer_funds(self, debit_account_id: UUID, credit_account_id: UUID, amount: Decimal) -> None:
         debit_account = self.get_account(debit_account_id)
         credit_account = self.get_account(credit_account_id)
         debit_account.append_transaction(-amount)

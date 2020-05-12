@@ -10,8 +10,8 @@ class TestBankAccounts(TestCase):
     def test(self):
         with BankAccountApplication.mixin(PopoApplication)() as app:
             app: BankAccountApplication
-            account_id1 = app.create_accout()
-            account_id2 = app.create_accout()
+            account_id1 = app.create_account()
+            account_id2 = app.create_account()
 
             self.assertEqual(app.get_balance(account_id1), Decimal("0.00"))
             self.assertEqual(app.get_balance(account_id2), Decimal("0.00"))

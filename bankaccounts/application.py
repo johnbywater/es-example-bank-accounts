@@ -4,7 +4,7 @@ from bankaccounts.domainmodel import BankAccount
 
 
 class BankAccountApplication(SimpleApplication):
-    def create_accout(self):
+    def create_account(self):
         account = BankAccount.__create__()
         self.save(account)
         return account.id

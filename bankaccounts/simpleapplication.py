@@ -26,8 +26,8 @@ class SimpleBankAccountApplication(SimpleApplication):
         account.append_transaction(amount)
         self.save(account)
 
-    def withdraw_funds(self, credit_account_id: UUID, amount: Decimal) -> None:
-        account = self.get_account(credit_account_id)
+    def withdraw_funds(self, debit_account_id: UUID, amount: Decimal) -> None:
+        account = self.get_account(debit_account_id)
         account.append_transaction(-amount)
         self.save(account)
 

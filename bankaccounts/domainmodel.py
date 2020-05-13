@@ -1,5 +1,6 @@
 from decimal import Decimal
-from typing import Any
+from typing import Any, Type
+from uuid import UUID
 
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 
@@ -21,10 +22,12 @@ class BankAccount(BaseAggregateRoot):
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError
 
-    def append_transaction(self, amount: Decimal) -> None:
+    def append_transaction(self, amount: Decimal, transaction_id: UUID = None) -> None:
         self.check_account_is_not_closed()
         self.check_has_sufficient_funds(amount)
-        self.__trigger_event__(self.TransactionAppended, amount=amount)
+        self.__trigger_event__(
+            self.TransactionAppended, amount=amount, transaction_id=transaction_id
+        )
 
     class TransactionAppended(BaseAggregateRoot.Event):
         @property
@@ -53,3 +56,9 @@ class BankAccount(BaseAggregateRoot):
     class Closed(BaseAggregateRoot.Event):
         def mutate(self, obj: "BankAccount") -> None:
             obj.is_closed = True
+
+    def record_error(self, error: Exception, transaction_id=None):
+        self.__trigger_event__(self.ErrorRecorded, error=error, transaction_id=transaction_id)
+
+    class ErrorRecorded(BaseAggregateRoot.Event):
+        pass

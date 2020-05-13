@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Any, Type
+from typing import Any
 from uuid import UUID
 
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot

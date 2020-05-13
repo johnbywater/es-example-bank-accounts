@@ -88,12 +88,17 @@ class TransferFundsSaga(BaseSaga):
         self.credit_account_id = credit_account_id
         self.amount = amount
 
-    def on_bank_account_transaction_appended(self, event: BankAccount.TransactionAppended):
+    def on_bank_account_transaction_appended(
+        self, event: BankAccount.TransactionAppended
+    ):
         if self.was_debit_account_debited(event):
             self.require_credit_account_credit()
 
     def was_debit_account_debited(self, event):
-        return event.originator_id == self.debit_account_id and event.amount == -self.amount
+        return (
+            event.originator_id == self.debit_account_id
+            and event.amount == -self.amount
+        )
 
     def require_credit_account_credit(self):
         self.__trigger_event__(

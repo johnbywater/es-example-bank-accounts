@@ -58,7 +58,9 @@ class BankAccount(BaseAggregateRoot):
             obj.is_closed = True
 
     def record_error(self, error: Exception, transaction_id=None):
-        self.__trigger_event__(self.ErrorRecorded, error=error, transaction_id=transaction_id)
+        self.__trigger_event__(
+            self.ErrorRecorded, error=error, transaction_id=transaction_id
+        )
 
     class ErrorRecorded(BaseAggregateRoot.Event):
         pass

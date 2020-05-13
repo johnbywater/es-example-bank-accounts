@@ -32,7 +32,7 @@ class SimpleBankAccountApplication(SimpleApplication):
         self.save(account)
 
     def transfer_funds(
-            self, debit_account_id: UUID, credit_account_id: UUID, amount: Decimal
+        self, debit_account_id: UUID, credit_account_id: UUID, amount: Decimal
     ) -> None:
         debit_account = self.get_account(debit_account_id)
         credit_account = self.get_account(credit_account_id)

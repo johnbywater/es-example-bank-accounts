@@ -89,9 +89,7 @@ class TestSimpleBankAccountApplication(TestCase):
 
             # Fail to withdraw funds - account closed.
             with self.assertRaises(AccountClosedError):
-                app.withdraw_funds(
-                    debit_account_id=account_id1, amount=Decimal("1.00")
-                )
+                app.withdraw_funds(debit_account_id=account_id1, amount=Decimal("1.00"))
 
             # Fail to deposit funds - account closed.
             with self.assertRaises(AccountClosedError):

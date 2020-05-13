@@ -3,7 +3,7 @@ from typing import Any
 
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
 
-from bankaccounts.exceptions import AccountClosedError, InsufficientFundsError, TransactionError
+from bankaccounts.exceptions import AccountClosedError, InsufficientFundsError
 
 
 class BankAccount(BaseAggregateRoot):

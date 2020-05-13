@@ -47,3 +47,7 @@ class BankAccountApplication(SimpleApplication):
         account = self.get_account(account_id)
         account.set_overdraft_limit(overdraft_limit)
         self.save(account)
+
+    def get_overdraft_limit(self, account_id: UUID) -> Decimal:
+        account = self.get_account(account_id)
+        return account.overdraft_limit

@@ -36,6 +36,16 @@ class TestBankAccounts(TestCase):
             # Check balance.
             self.assertEqual(app.get_balance(account_id1), Decimal("150.00"))
 
+            # Fail to withdraw funds - insufficient funds.
+            with self.assertRaises(InsufficientFundsError):
+                app.withdraw_funds(
+                    credit_account_id=account_id1,
+                    amount=Decimal("151.00")
+                )
+
+            # Check balance - should be unchanged.
+            self.assertEqual(app.get_balance(account_id1), Decimal("150.00"))
+
             # Create another account.
             account_id2 = app.create_account()
 
@@ -73,6 +83,13 @@ class TestBankAccounts(TestCase):
                     amount=Decimal("50.00")
                 )
 
+            # Fail to withdraw funds - account closed.
+            with self.assertRaises(AccountClosedError):
+                app.withdraw_funds(
+                    credit_account_id=account_id1,
+                    amount=Decimal("1.00")
+                )
+
             # Fail to deposit funds - account closed.
             with self.assertRaises(AccountClosedError):
                 app.deposit_funds(
@@ -80,18 +97,20 @@ class TestBankAccounts(TestCase):
                     amount=Decimal("1000.00")
                 )
 
-            # Fail to withdraw funds - insufficient funds.
-            with self.assertRaises(InsufficientFundsError):
-                app.withdraw_funds(
-                    credit_account_id=account_id2,
-                    amount=Decimal("500.00")
-                )
+            # Check balance - should be unchanged.
+            self.assertEqual(app.get_balance(account_id1), Decimal("50.00"))
 
-            # Add overdraft.
+            # Check overdraft limit.
+            self.assertEqual(app.get_overdraft_limit(account_id2), Decimal("0.00"))
+
+            # Set overdraft limit.
             app.set_overdraft_limit(
                 account_id=account_id2,
                 overdraft_limit=Decimal("500.00")
             )
+
+            # Check overdraft limit.
+            self.assertEqual(app.get_overdraft_limit(account_id2), Decimal("500.00"))
 
             # Withdraw funds.
             app.withdraw_funds(
@@ -102,10 +121,16 @@ class TestBankAccounts(TestCase):
             # Check balance - should be overdrawn.
             self.assertEqual(app.get_balance(account_id2), Decimal("-400.00"))
 
+            # Fail to withdraw funds - insufficient funds.
+            with self.assertRaises(InsufficientFundsError):
+                app.withdraw_funds(
+                    credit_account_id=account_id2,
+                    amount=Decimal("101.00")
+                )
+
             # Fail to set overdraft limit - account closed.
             with self.assertRaises(AccountClosedError):
                 app.set_overdraft_limit(
                     account_id=account_id1,
                     overdraft_limit=Decimal("500.00")
                 )
-

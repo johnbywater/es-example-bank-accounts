@@ -13,6 +13,14 @@ class BankAccount(BaseAggregateRoot):
         self.balance = Decimal("0.00")
         self.is_closed = False
 
+    def check_account_is_not_closed(self) -> None:
+        if self.is_closed:
+            raise AccountClosedError
+
+    def check_has_sufficient_funds(self, amount: Decimal) -> None:
+        if self.balance + amount < -self.overdraft_limit:
+            raise InsufficientFundsError
+
     def append_transaction(self, amount: Decimal) -> None:
         self.check_account_is_not_closed()
         self.check_has_sufficient_funds(amount)
@@ -25,13 +33,6 @@ class BankAccount(BaseAggregateRoot):
 
         def mutate(self, obj: "BankAccount") -> None:
             obj.balance += self.amount
-
-    def close(self):
-        self.__trigger_event__(self.Closed)
-
-    class Closed(BaseAggregateRoot.Event):
-        def mutate(self, obj: "BankAccount") -> None:
-            obj.is_closed = True
 
     def set_overdraft_limit(self, overdraft_limit: Decimal) -> None:
         assert overdraft_limit > Decimal("0.00")
@@ -46,10 +47,9 @@ class BankAccount(BaseAggregateRoot):
         def mutate(self, obj: "BankAccount") -> None:
             obj.overdraft_limit = self.overdraft_limit
 
-    def check_account_is_not_closed(self) -> None:
-        if self.is_closed:
-            raise AccountClosedError
+    def close(self):
+        self.__trigger_event__(self.Closed)
 
-    def check_has_sufficient_funds(self, amount: Decimal) -> None:
-        if self.balance + amount < -self.overdraft_limit:
-            raise InsufficientFundsError
+    class Closed(BaseAggregateRoot.Event):
+        def mutate(self, obj: "BankAccount") -> None:
+            obj.is_closed = True

@@ -38,7 +38,12 @@ class BankAccountApplication(SimpleApplication):
         credit_account.append_transaction(amount)
         self.save([debit_account, credit_account])
 
-    def close_account(self, account_id):
+    def close_account(self, account_id: UUID) -> None:
         account = self.get_account(account_id)
         account.close()
+        self.save(account)
+
+    def set_overdraft_limit(self, account_id: UUID, overdraft_limit: Decimal) -> None:
+        account = self.get_account(account_id)
+        account.set_overdraft_limit(overdraft_limit)
         self.save(account)

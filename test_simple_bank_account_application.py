@@ -102,6 +102,12 @@ class TestSimpleBankAccountApplication(TestCase):
                 account_id=account_id2, overdraft_limit=Decimal("500.00")
             )
 
+            # Can't set negative overdraft limit.
+            with self.assertRaises(AssertionError):
+                app.set_overdraft_limit(
+                    account_id=account_id2, overdraft_limit=Decimal("-500.00")
+                )
+
             # Check overdraft limit.
             self.assertEqual(app.get_overdraft_limit(account_id2), Decimal("500.00"))
 

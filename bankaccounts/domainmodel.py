@@ -10,9 +10,16 @@ from bankaccounts.exceptions import AccountClosedError, InsufficientFundsError
 class BankAccount(BaseAggregateRoot):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.overdraft_limit = Decimal("0.00")
         self.balance = Decimal("0.00")
+        self.overdraft_limit = Decimal("0.00")
         self.is_closed = False
+
+    def append_transaction(self, amount: Decimal, transaction_id: UUID = None) -> None:
+        self.check_account_is_not_closed()
+        self.check_has_sufficient_funds(amount)
+        self.__trigger_event__(
+            self.TransactionAppended, amount=amount, transaction_id=transaction_id
+        )
 
     def check_account_is_not_closed(self) -> None:
         if self.is_closed:
@@ -21,13 +28,6 @@ class BankAccount(BaseAggregateRoot):
     def check_has_sufficient_funds(self, amount: Decimal) -> None:
         if self.balance + amount < -self.overdraft_limit:
             raise InsufficientFundsError({"account_id": self.id})
-
-    def append_transaction(self, amount: Decimal, transaction_id: UUID = None) -> None:
-        self.check_account_is_not_closed()
-        self.check_has_sufficient_funds(amount)
-        self.__trigger_event__(
-            self.TransactionAppended, amount=amount, transaction_id=transaction_id
-        )
 
     class TransactionAppended(BaseAggregateRoot.Event):
         @property

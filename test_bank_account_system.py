@@ -4,7 +4,10 @@ from unittest import TestCase
 from eventsourcing.system.runner import SingleThreadedRunner
 
 from bankaccounts.exceptions import AccountClosedError, InsufficientFundsError
-from bankaccounts.system import Accounts, BankAccountSystem, Commands, Sagas
+from bankaccounts.system.definition import BankAccountSystem
+from bankaccounts.system.accounts import Accounts
+from bankaccounts.system.sagas import Sagas
+from bankaccounts.system.commands import Commands
 
 
 class TestBankAccountSystem(TestCase):
@@ -16,11 +19,11 @@ class TestBankAccountSystem(TestCase):
         self.accounts: Accounts = self.runner.get(Accounts)
 
     def tearDown(self) -> None:
-        del(self.accounts)
-        del(self.sagas)
-        del(self.commands)
+        del self.accounts
+        del self.sagas
+        del self.commands
         self.runner.close()
-        del(self.runner)
+        del self.runner
 
     def test_deposit_funds_ok(self):
         # Create an account.
@@ -219,7 +222,9 @@ class TestBankAccountSystem(TestCase):
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
         # Check overdraft limit.
-        self.assertEqual(self.accounts.get_overdraft_limit(account_id1), Decimal("0.00"))
+        self.assertEqual(
+            self.accounts.get_overdraft_limit(account_id1), Decimal("0.00")
+        )
 
         # Set overdraft limit.
         self.accounts.set_overdraft_limit(
@@ -233,7 +238,9 @@ class TestBankAccountSystem(TestCase):
             )
 
         # Check overdraft limit.
-        self.assertEqual(self.accounts.get_overdraft_limit(account_id1), Decimal("500.00"))
+        self.assertEqual(
+            self.accounts.get_overdraft_limit(account_id1), Decimal("500.00")
+        )
 
         # Withdraw funds.
         transaction_id = self.commands.withdraw_funds(account_id1, Decimal("500.00"))

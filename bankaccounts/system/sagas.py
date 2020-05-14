@@ -1,66 +1,13 @@
-from decimal import Decimal
-from uuid import UUID
-
-from eventsourcing.application.command import CommandProcess
 from eventsourcing.application.decorators import applicationpolicy
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
-from eventsourcing.domain.model.command import Command
-from eventsourcing.system.definition import System
 
 from bankaccounts.domainmodel import BankAccount
-from bankaccounts.exceptions import TransactionError
-
-
-class BaseCommand(Command):
-    __subclassevents__ = True
-
-
-class DepositFundsCommand(BaseCommand):
-    def __init__(self, *, credit_account_id, amount, **kwargs):
-        super(DepositFundsCommand, self).__init__(**kwargs)
-        self.credit_account_id = credit_account_id
-        self.amount = amount
-
-
-class WithdrawFundsCommand(BaseCommand):
-    def __init__(self, *, debit_account_id, amount, **kwargs):
-        super(WithdrawFundsCommand, self).__init__(**kwargs)
-        self.debit_account_id = debit_account_id
-        self.amount = amount
-
-
-class TransferFundsCommand(BaseCommand):
-    def __init__(self, *, debit_account_id, credit_account_id, amount, **kwargs):
-        super(TransferFundsCommand, self).__init__(**kwargs)
-        self.debit_account_id = debit_account_id
-        self.credit_account_id = credit_account_id
-        self.amount = amount
-
-
-class Commands(CommandProcess):
-    def deposit_funds(self, credit_account_id, amount) -> UUID:
-        cmd = DepositFundsCommand.__create__(
-            credit_account_id=credit_account_id, amount=amount
-        )
-        self.save(cmd)
-        return cmd.id
-
-    def withdraw_funds(self, debit_account_id, amount):
-        cmd = WithdrawFundsCommand.__create__(
-            debit_account_id=debit_account_id, amount=amount
-        )
-        self.save(cmd)
-        return cmd.id
-
-    def transfer_funds(self, debit_account_id, credit_account_id, amount):
-        cmd = TransferFundsCommand.__create__(
-            debit_account_id=debit_account_id,
-            credit_account_id=credit_account_id,
-            amount=amount,
-        )
-        self.save(cmd)
-        return cmd.id
+from bankaccounts.system.commands import (
+    DepositFundsCommand,
+    TransferFundsCommand,
+    WithdrawFundsCommand,
+)
 
 
 class BaseSaga(BaseAggregateRoot):
@@ -122,7 +69,7 @@ class TransferFundsSaga(BaseSaga):
         self.has_debit_account_debited = False
 
     def on_bank_account_transaction_appended(
-        self, event: BankAccount.TransactionAppended
+            self, event: BankAccount.TransactionAppended
     ):
         if self.was_debit_account_debited(event):
             self.require_credit_account_credit()
@@ -133,23 +80,23 @@ class TransferFundsSaga(BaseSaga):
 
     def was_debit_account_debited(self, event):
         return (
-            self.has_debit_account_debited is False
-            and event.originator_id == self.debit_account_id
-            and event.amount == -self.amount
+                self.has_debit_account_debited is False
+                and event.originator_id == self.debit_account_id
+                and event.amount == -self.amount
         )
 
     def was_credit_account_credited(self, event):
         return (
-            self.has_debit_account_debited is True
-            and event.originator_id == self.credit_account_id
-            and event.amount == self.amount
+                self.has_debit_account_debited is True
+                and event.originator_id == self.credit_account_id
+                and event.amount == self.amount
         )
 
     def was_debit_account_refunded(self, event):
         return (
-            self.has_debit_account_debited is True
-            and event.originator_id == self.debit_account_id
-            and event.amount == self.amount
+                self.has_debit_account_debited is True
+                and event.originator_id == self.debit_account_id
+                and event.amount == self.amount
         )
 
     def require_credit_account_credit(self):
@@ -237,97 +184,3 @@ class Sagas(ProcessApplication):
         if event.transaction_id:
             saga: BaseSaga = repository[event.transaction_id]
             saga.on_bank_account_error_recorded(event)
-
-
-class Accounts(ProcessApplication):
-    def create_account(self) -> UUID:
-        account = BankAccount.__create__()
-        self.save(account)
-        return account.id
-
-    def get_account(self, repository, account_id: UUID) -> BankAccount:
-        account = repository[account_id]
-        assert isinstance(account, BankAccount)
-        return account
-
-    def get_balance(self, account_id: UUID) -> Decimal:
-        account = self.get_account(self.repository, account_id)
-        return account.balance
-
-    def set_overdraft_limit(self, account_id: UUID, overdraft_limit: Decimal) -> None:
-        account = self.get_account(self.repository, account_id)
-        account.set_overdraft_limit(overdraft_limit)
-        self.save(account)
-
-    def get_overdraft_limit(self, account_id: UUID) -> Decimal:
-        account = self.get_account(self.repository, account_id)
-        return account.overdraft_limit
-
-    def close_account(self, account_id: UUID) -> None:
-        account = self.get_account(self.repository, account_id)
-        account.close()
-        self.save(account)
-
-    @applicationpolicy
-    def policy(self, repository, event):
-        pass
-
-    @policy.register(DepositFundsSaga.Created)
-    def _(self, repository, event):
-        self._append_transaction(
-            repository=repository,
-            transaction_id=event.originator_id,
-            account_id=event.credit_account_id,
-            amount=event.amount,
-        )
-
-    @policy.register(WithdrawFundsSaga.Created)
-    def _(self, repository, event):
-        self._append_transaction(
-            repository=repository,
-            transaction_id=event.originator_id,
-            account_id=event.debit_account_id,
-            amount=-event.amount,
-        )
-
-    @policy.register(TransferFundsSaga.Created)
-    def _(self, repository, event):
-        self._append_transaction(
-            repository=repository,
-            transaction_id=event.originator_id,
-            account_id=event.debit_account_id,
-            amount=-event.amount,
-        )
-
-    @policy.register(TransferFundsSaga.CreditAccountCreditRequired)
-    def _(self, repository, event):
-        self._append_transaction(
-            repository=repository,
-            transaction_id=event.originator_id,
-            account_id=event.credit_account_id,
-            amount=event.amount,
-        )
-
-    @policy.register(TransferFundsSaga.DebitAccountRefundRequired)
-    def _(self, repository, event):
-        self._append_transaction(
-            repository=repository,
-            transaction_id=event.originator_id,
-            account_id=event.debit_account_id,
-            amount=event.amount,
-        )
-
-    def _append_transaction(self, repository, transaction_id, account_id, amount):
-        account = self.get_account(repository=repository, account_id=account_id)
-        try:
-            account.append_transaction(amount, transaction_id=transaction_id)
-        except TransactionError as e:
-            account.record_error(error=e, transaction_id=transaction_id)
-
-
-class BankAccountSystem(System):
-    def __init__(self, infrastructure_class):
-        super(BankAccountSystem, self).__init__(
-            Commands | Sagas | Accounts | Sagas,
-            infrastructure_class=infrastructure_class,
-        )

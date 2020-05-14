@@ -19,12 +19,18 @@ class BaseSaga(BaseAggregateRoot):
         self.has_errored = False
         self.errors = []
 
+    def handle_bank_account_transaction_appended(self, event):
+        self.saga_has_succeeded()
+
     def saga_has_succeeded(self):
         self.__trigger_event__(self.Succeeded)
 
     class Succeeded(BaseAggregateRoot.Event):
         def mutate(self, obj: "DepositFundsSaga") -> None:
             obj.has_succeeded = True
+
+    def handle_bank_account_error_recorded(self, event):
+        self.saga_has_errored(event.error)
 
     def saga_has_errored(self, error=None):
         self.__trigger_event__(self.Errored, error=error)
@@ -38,12 +44,6 @@ class BaseSaga(BaseAggregateRoot):
             obj.has_errored = True
             if self.error:
                 obj.errors.append(self.error)
-
-    def handle_bank_account_transaction_appended(self, event):
-        self.saga_has_succeeded()
-
-    def handle_bank_account_error_recorded(self, event):
-        self.saga_has_errored(event.error)
 
 
 class DepositFundsSaga(BaseSaga):

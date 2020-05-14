@@ -19,20 +19,14 @@ class BaseSaga(BaseAggregateRoot):
         self.has_errored = False
         self.errors = []
 
-    def on_bank_account_transaction_appended(self, event):
-        self.record_has_succeeded()
-
-    def record_has_succeeded(self):
+    def saga_has_succeeded(self):
         self.__trigger_event__(self.Succeeded)
 
     class Succeeded(BaseAggregateRoot.Event):
         def mutate(self, obj: "DepositFundsSaga") -> None:
             obj.has_succeeded = True
 
-    def on_bank_account_error_recorded(self, event):
-        self.record_has_errored(event.error)
-
-    def record_has_errored(self, error=None):
+    def saga_has_errored(self, error=None):
         self.__trigger_event__(self.Errored, error=error)
 
     class Errored(BaseAggregateRoot.Event):
@@ -44,6 +38,12 @@ class BaseSaga(BaseAggregateRoot):
             obj.has_errored = True
             if self.error:
                 obj.errors.append(self.error)
+
+    def handle_bank_account_transaction_appended(self, event):
+        self.saga_has_succeeded()
+
+    def handle_bank_account_error_recorded(self, event):
+        self.saga_has_errored(event.error)
 
 
 class DepositFundsSaga(BaseSaga):
@@ -68,15 +68,15 @@ class TransferFundsSaga(BaseSaga):
         self.amount = amount
         self.has_debit_account_debited = False
 
-    def on_bank_account_transaction_appended(
+    def handle_bank_account_transaction_appended(
             self, event: BankAccount.TransactionAppended
     ):
         if self.was_debit_account_debited(event):
             self.require_credit_account_credit()
         elif self.was_credit_account_credited(event):
-            self.record_has_succeeded()
+            self.saga_has_succeeded()
         elif self.was_debit_account_refunded(event):
-            self.record_has_errored()
+            self.saga_has_errored()
 
     def was_debit_account_debited(self, event):
         return (
@@ -110,9 +110,9 @@ class TransferFundsSaga(BaseSaga):
         def mutate(self, obj: "TransferFundsSaga") -> None:
             obj.has_debit_account_debited = True
 
-    def on_bank_account_error_recorded(self, event: BankAccount.ErrorRecorded):
+    def handle_bank_account_error_recorded(self, event: BankAccount.ErrorRecorded):
         if self.has_debit_account_errored(event):
-            self.record_has_errored(event.error)
+            self.saga_has_errored(event.error)
         elif self.has_credit_account_errored(event):
             self.require_debit_account_refund(credit_account_error=event.error)
 
@@ -177,10 +177,10 @@ class Sagas(ProcessApplication):
     @policy.register(BankAccount.TransactionAppended)
     def _(self, repository, event):
         saga: BaseSaga = repository[event.transaction_id]
-        saga.on_bank_account_transaction_appended(event)
+        saga.handle_bank_account_transaction_appended(event)
 
     @policy.register(BankAccount.ErrorRecorded)
     def _(self, repository, event):
         if event.transaction_id:
             saga: BaseSaga = repository[event.transaction_id]
-            saga.on_bank_account_error_recorded(event)
+            saga.handle_bank_account_error_recorded(event)

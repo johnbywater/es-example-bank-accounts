@@ -254,6 +254,15 @@ class Accounts(ProcessApplication):
         account = self.get_account(self.repository, account_id)
         return account.balance
 
+    def set_overdraft_limit(self, account_id: UUID, overdraft_limit: Decimal) -> None:
+        account = self.get_account(self.repository, account_id)
+        account.set_overdraft_limit(overdraft_limit)
+        self.save(account)
+
+    def get_overdraft_limit(self, account_id: UUID) -> Decimal:
+        account = self.get_account(self.repository, account_id)
+        return account.overdraft_limit
+
     def close_account(self, account_id: UUID) -> None:
         account = self.get_account(self.repository, account_id)
         account.close()

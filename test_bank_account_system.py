@@ -16,13 +16,13 @@ class TestBankAccountSystem(TestCase):
         self.accounts: Accounts = self.runner.get(Accounts)
 
     def tearDown(self) -> None:
-        self.accounts = None
-        self.sagas = None
-        self.commands = None
+        del(self.accounts)
+        del(self.sagas)
+        del(self.commands)
         self.runner.close()
-        self.runner = None
+        del(self.runner)
 
-    def test_deposit_funds(self):
+    def test_deposit_funds_ok(self):
         # Create an account.
         account_id1 = self.accounts.create_account()
 
@@ -30,17 +30,35 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id1), Decimal("0.00"))
 
         # Deposit funds.
-        transaction_id = self.commands.deposit_funds(
-            credit_account_id=account_id1, amount=Decimal("200.00")
-        )
-
-        # Check balance.
-        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
+        transaction_id = self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
         # Check saga succeeded.
         self.assertTrue(self.sagas.get_saga(transaction_id).has_succeeded)
         self.assertFalse(self.sagas.get_saga(transaction_id).has_errored)
         self.assertFalse(self.sagas.get_saga(transaction_id).errors)
+
+        # Check balance.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
+
+    def test_deposit_funds_error_account_closed(self):
+        # Create an account.
+        account_id1 = self.accounts.create_account()
+
+        # Close account.
+        self.accounts.close_account(account_id1)
+
+        # Deposit funds.
+        transaction_id = self.commands.deposit_funds(account_id1, Decimal("200.00"))
+
+        # Check saga errored.
+        self.assertFalse(self.sagas.get_saga(transaction_id).has_succeeded)
+        self.assertTrue(self.sagas.get_saga(transaction_id).has_errored)
+        errors = self.sagas.get_saga(transaction_id).errors
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0], AccountClosedError({"account_id": account_id1}))
+
+        # Check balance.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("0.00"))
 
     def test_withdraw_funds_ok(self):
         account_id1 = self.accounts.create_account()
@@ -62,25 +80,45 @@ class TestBankAccountSystem(TestCase):
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
         # Fail to withdraw funds - insufficient funds.
+        transaction_id = self.commands.withdraw_funds(account_id1, Decimal("200.01"))
+
+        # Check saga errored.
+        self.assertFalse(self.sagas.get_saga(transaction_id).has_succeeded)
+        self.assertTrue(self.sagas.get_saga(transaction_id).has_errored)
+        errors = self.sagas.get_saga(transaction_id).errors
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0], InsufficientFundsError({"account_id": account_id1}))
+
+        # Check balance.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
+
+    def test_withdraw_funds_error_account_closed(self):
+        account_id1 = self.accounts.create_account()
+        self.commands.deposit_funds(account_id1, Decimal("200.00"))
+
+        # Close account.
+        self.accounts.close_account(account_id1)
+
+        # Fail to withdraw funds - account closed.
         transaction_id = self.commands.withdraw_funds(
-            debit_account_id=account_id1, amount=Decimal("201.00")
+            debit_account_id=account_id1, amount=Decimal("50.00")
         )
 
         # Check saga errored.
         self.assertFalse(self.sagas.get_saga(transaction_id).has_succeeded)
         self.assertTrue(self.sagas.get_saga(transaction_id).has_errored)
-        self.assertEqual(
-            self.sagas.get_saga(transaction_id).errors[0],
-            InsufficientFundsError({"account_id": account_id1}),
-        )
+        errors = self.sagas.get_saga(transaction_id).errors
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0], AccountClosedError({"account_id": account_id1}))
+
+        # Check balance.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
 
     def test_transfer_funds_ok(self):
         # Create accounts.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
-        self.commands.deposit_funds(
-            credit_account_id=account_id1, amount=Decimal("200.00")
-        )
+        self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
         # Transfer funds.
         transaction_id = self.commands.transfer_funds(
@@ -92,6 +130,7 @@ class TestBankAccountSystem(TestCase):
         # Check saga succeeded.
         self.assertTrue(self.sagas.get_saga(transaction_id).has_succeeded)
         self.assertFalse(self.sagas.get_saga(transaction_id).has_errored)
+        self.assertFalse(self.sagas.get_saga(transaction_id).errors)
 
         # Check balances.
         self.assertEqual(self.accounts.get_balance(account_id1), Decimal("150.00"))
@@ -101,9 +140,7 @@ class TestBankAccountSystem(TestCase):
         # Create accounts.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
-        self.commands.deposit_funds(
-            credit_account_id=account_id1, amount=Decimal("200.00")
-        )
+        self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
         # Fail to transfer funds - insufficient funds.
         transaction_id = self.commands.transfer_funds(
@@ -127,12 +164,7 @@ class TestBankAccountSystem(TestCase):
         # Create accounts.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
-        self.commands.deposit_funds(
-            credit_account_id=account_id1, amount=Decimal("200.00")
-        )
-        self.commands.deposit_funds(
-            credit_account_id=account_id2, amount=Decimal("200.00")
-        )
+        self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
         # Close account.
         self.accounts.close_account(account_id1)
@@ -153,18 +185,13 @@ class TestBankAccountSystem(TestCase):
 
         # Check balances - should be unchanged.
         self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
-        self.assertEqual(self.accounts.get_balance(account_id2), Decimal("200.00"))
+        self.assertEqual(self.accounts.get_balance(account_id2), Decimal("0.00"))
 
     def test_transfer_funds_error_credit_account_closed(self):
         # Create accounts.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
-        self.commands.deposit_funds(
-            credit_account_id=account_id1, amount=Decimal("200.00")
-        )
-        self.commands.deposit_funds(
-            credit_account_id=account_id2, amount=Decimal("200.00")
-        )
+        self.commands.deposit_funds(account_id2, Decimal("200.00"))
 
         # Close account.
         self.accounts.close_account(account_id1)
@@ -176,10 +203,6 @@ class TestBankAccountSystem(TestCase):
             amount=Decimal("50.00"),
         )
 
-        # Check balances - should be unchanged.
-        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
-        self.assertEqual(self.accounts.get_balance(account_id2), Decimal("200.00"))
-
         # Check saga errored.
         self.assertFalse(self.sagas.get_saga(transaction_id).has_succeeded)
         self.assertTrue(self.sagas.get_saga(transaction_id).has_errored)
@@ -187,52 +210,60 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0], AccountClosedError({"account_id": account_id1}))
 
-        # # Fail to withdraw funds - account closed.
-        # with self.assertRaises(AccountClosedError):
-        #     app.withdraw_funds(
-        #         debit_account_id=account_id1, amount=Decimal("1.00")
-        #     )
-        #
-        # # Fail to deposit funds - account closed.
-        # with self.assertRaises(AccountClosedError):
-        #     app.deposit_funds(
-        #         debit_account_id=account_id1, amount=Decimal("1000.00")
-        #     )
-        #
-        # # Check balance - should be unchanged.
-        # self.assertEqual(app.get_balance(account_id1), Decimal("50.00"))
-        #
-        # # Check overdraft limit.
-        # self.assertEqual(app.get_overdraft_limit(account_id2), Decimal("0.00"))
-        #
-        # # Set overdraft limit.
-        # app.set_overdraft_limit(
-        #     account_id=account_id2, overdraft_limit=Decimal("500.00")
-        # )
-        #
-        # # Can't set negative overdraft limit.
-        # with self.assertRaises(AssertionError):
-        #     app.set_overdraft_limit(
-        #         account_id=account_id2, overdraft_limit=Decimal("-500.00")
-        #     )
-        #
-        # # Check overdraft limit.
-        # self.assertEqual(app.get_overdraft_limit(account_id2), Decimal("500.00"))
-        #
-        # # Withdraw funds.
-        # app.withdraw_funds(debit_account_id=account_id2, amount=Decimal("500.00"))
-        #
-        # # Check balance - should be overdrawn.
-        # self.assertEqual(app.get_balance(account_id2), Decimal("-400.00"))
-        #
-        # # Fail to withdraw funds - insufficient funds.
-        # with self.assertRaises(InsufficientFundsError):
-        #     app.withdraw_funds(
-        #         debit_account_id=account_id2, amount=Decimal("101.00")
-        #     )
-        #
-        # # Fail to set overdraft limit - account closed.
-        # with self.assertRaises(AccountClosedError):
-        #     app.set_overdraft_limit(
-        #         account_id=account_id1, overdraft_limit=Decimal("500.00")
-        #     )
+        # Check balances - should be unchanged.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("0.00"))
+        self.assertEqual(self.accounts.get_balance(account_id2), Decimal("200.00"))
+
+    def test_overdraft_limit(self):
+        account_id1 = self.accounts.create_account()
+        self.commands.deposit_funds(account_id1, Decimal("200.00"))
+
+        # Check overdraft limit.
+        self.assertEqual(self.accounts.get_overdraft_limit(account_id1), Decimal("0.00"))
+
+        # Set overdraft limit.
+        self.accounts.set_overdraft_limit(
+            account_id=account_id1, overdraft_limit=Decimal("500.00")
+        )
+
+        # Can't set negative overdraft limit.
+        with self.assertRaises(AssertionError):
+            self.accounts.set_overdraft_limit(
+                account_id=account_id1, overdraft_limit=Decimal("-500.00")
+            )
+
+        # Check overdraft limit.
+        self.assertEqual(self.accounts.get_overdraft_limit(account_id1), Decimal("500.00"))
+
+        # Withdraw funds.
+        transaction_id = self.commands.withdraw_funds(account_id1, Decimal("500.00"))
+
+        # Check saga succeeded.
+        self.assertTrue(self.sagas.get_saga(transaction_id).has_succeeded)
+        self.assertFalse(self.sagas.get_saga(transaction_id).has_errored)
+        self.assertFalse(self.sagas.get_saga(transaction_id).errors)
+
+        # Check balance - should be overdrawn.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("-300.00"))
+
+        # Fail to withdraw funds - insufficient funds.
+        transaction_id = self.commands.withdraw_funds(account_id1, Decimal("200.01"))
+
+        # Check saga errored.
+        self.assertFalse(self.sagas.get_saga(transaction_id).has_succeeded)
+        self.assertTrue(self.sagas.get_saga(transaction_id).has_errored)
+        errors = self.sagas.get_saga(transaction_id).errors
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0], InsufficientFundsError({"account_id": account_id1}))
+
+        # Check balance.
+        self.assertEqual(self.accounts.get_balance(account_id1), Decimal("-300.00"))
+
+        # Close account.
+        self.accounts.close_account(account_id1)
+
+        # Fail to set overdraft limit - account closed.
+        with self.assertRaises(AccountClosedError):
+            self.accounts.set_overdraft_limit(
+                account_id=account_id1, overdraft_limit=Decimal("5000.00")
+            )

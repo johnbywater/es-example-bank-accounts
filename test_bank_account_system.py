@@ -12,6 +12,7 @@ from bankaccounts.system.commands import Commands
 
 class TestBankAccountSystem(TestCase):
     def setUp(self) -> None:
+        # Run the system with single threaded runner.
         self.runner = SingleThreadedRunner(BankAccountSystem(infrastructure_class=None))
         self.runner.start()
         self.commands: Commands = self.runner.get(Commands)
@@ -64,6 +65,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id1), Decimal("0.00"))
 
     def test_withdraw_funds_ok(self):
+        # Create an account and deposit funds.
         account_id1 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
@@ -79,6 +81,7 @@ class TestBankAccountSystem(TestCase):
         self.assertFalse(self.sagas.get_saga(transaction_id).errors)
 
     def test_withdraw_funds_error_insufficient_funds(self):
+        # Create an account and deposit funds.
         account_id1 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
@@ -96,6 +99,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
 
     def test_withdraw_funds_error_account_closed(self):
+        # Create an account and deposit funds.
         account_id1 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
 
@@ -118,7 +122,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id1), Decimal("200.00"))
 
     def test_transfer_funds_ok(self):
-        # Create accounts.
+        # Create two accounts and deposit funds.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
@@ -140,7 +144,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id2), Decimal("50.00"))
 
     def test_transfer_funds_error_insufficient_funds(self):
-        # Create accounts.
+        # Create two accounts and deposit funds.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
@@ -164,7 +168,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id2), Decimal("0.00"))
 
     def test_transfer_funds_error_debit_account_closed(self):
-        # Create accounts.
+        # Create two accounts and deposit funds.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
@@ -191,7 +195,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id2), Decimal("0.00"))
 
     def test_transfer_funds_error_credit_account_closed(self):
-        # Create accounts.
+        # Create two accounts and deposit funds.
         account_id1 = self.accounts.create_account()
         account_id2 = self.accounts.create_account()
         self.commands.deposit_funds(account_id2, Decimal("200.00"))
@@ -218,6 +222,7 @@ class TestBankAccountSystem(TestCase):
         self.assertEqual(self.accounts.get_balance(account_id2), Decimal("200.00"))
 
     def test_overdraft_limit(self):
+        # Create an account and deposit funds.
         account_id1 = self.accounts.create_account()
         self.commands.deposit_funds(account_id1, Decimal("200.00"))
 

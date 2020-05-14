@@ -1,5 +1,9 @@
 class TransactionError(Exception):
-    pass
+    def __eq__(self, other):
+        return (
+            self.args == other.args
+            and type(self) == type(other)
+        )
 
 
 class AccountClosedError(TransactionError):

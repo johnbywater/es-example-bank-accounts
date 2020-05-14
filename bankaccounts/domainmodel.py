@@ -16,11 +16,11 @@ class BankAccount(BaseAggregateRoot):
 
     def check_account_is_not_closed(self) -> None:
         if self.is_closed:
-            raise AccountClosedError
+            raise AccountClosedError({"account_id": self.id})
 
     def check_has_sufficient_funds(self, amount: Decimal) -> None:
         if self.balance + amount < -self.overdraft_limit:
-            raise InsufficientFundsError
+            raise InsufficientFundsError({"account_id": self.id})
 
     def append_transaction(self, amount: Decimal, transaction_id: UUID = None) -> None:
         self.check_account_is_not_closed()
@@ -63,4 +63,6 @@ class BankAccount(BaseAggregateRoot):
         )
 
     class ErrorRecorded(BaseAggregateRoot.Event):
-        pass
+        @property
+        def error(self):
+            return self.__dict__["error"]

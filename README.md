@@ -21,4 +21,16 @@ There is also a ``BankAccountSystem`` which has similar functionality, but recor
 
 Deposits and withdraws are processed by creating a command, which creates a saga, and then the account is adjusted. If an error occurs, the saga will not succeed and the account error will be recorded on the saga.
 
-Transfers are processed by firstly debiting one account and then crediting the other account, in a multi-step process controlled by the ``TransferFundsSaga`` saga. 
+Transfers are processed by firstly debiting one account and then crediting the other account, in a multi-step process controlled by the ``TransferFundsSaga`` saga.
+
+### Testing
+
+The test suite includes test cases for the simple application and the system
+with the eventsourcing library's POPO infrastructure, and extends the
+system test case to run with various combinations of runners and infrastructure,
+so that the system is tested running with a single threaded runner and POPO, with
+a single threaded runner with SQLAlchemy and SQLite in memory, with a single threaded
+runner with SQLAlchemy and MySQL, with multi-threaded runner with POPO infrastructure,
+with multi-threaded runner with SQLAlchemy and MySQL, with multiprocessing runner
+with SQLAlchemy and MySQL, with the Ray actor framework runner with SQLAlchemy and
+MySQL, and with the Ray actor framework runner with POPO.

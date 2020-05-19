@@ -1,1 +1,1 @@
-eventsourcing==8.2.3
+eventsourcing[sqlalchemy,ray]==8.2.3

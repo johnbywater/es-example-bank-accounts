@@ -16,6 +16,11 @@ before_install:
 before_script:
   - mysql -e 'CREATE DATABASE eventsourcing;'
 
+env:
+  global:
+    - MYSQL_USER=travis
+    - MYSQL_PASSWORD=
+
 install:
   - pip install -U virtualenv
   - virtualenv --python=python ../venv

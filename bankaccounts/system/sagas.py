@@ -1,6 +1,8 @@
 from eventsourcing.application.decorators import applicationpolicy
 from eventsourcing.application.process import ProcessApplication
 from eventsourcing.domain.model.aggregate import BaseAggregateRoot
+from eventsourcing.domain.model.decorators import retry
+from eventsourcing.exceptions import RepositoryKeyError
 
 from bankaccounts.domainmodel import BankAccount
 from bankaccounts.system.commands import (
@@ -69,7 +71,7 @@ class TransferFundsSaga(BaseSaga):
         self.has_debit_account_debited = False
 
     def handle_bank_account_transaction_appended(
-            self, event: BankAccount.TransactionAppended
+        self, event: BankAccount.TransactionAppended
     ):
         if self.was_debit_account_debited(event):
             self.require_credit_account_credit()
@@ -80,23 +82,23 @@ class TransferFundsSaga(BaseSaga):
 
     def was_debit_account_debited(self, event):
         return (
-                self.has_debit_account_debited is False
-                and event.originator_id == self.debit_account_id
-                and event.amount == -self.amount
+            self.has_debit_account_debited is False
+            and event.originator_id == self.debit_account_id
+            and event.amount == -self.amount
         )
 
     def was_credit_account_credited(self, event):
         return (
-                self.has_debit_account_debited is True
-                and event.originator_id == self.credit_account_id
-                and event.amount == self.amount
+            self.has_debit_account_debited is True
+            and event.originator_id == self.credit_account_id
+            and event.amount == self.amount
         )
 
     def was_debit_account_refunded(self, event):
         return (
-                self.has_debit_account_debited is True
-                and event.originator_id == self.debit_account_id
-                and event.amount == self.amount
+            self.has_debit_account_debited is True
+            and event.originator_id == self.debit_account_id
+            and event.amount == self.amount
         )
 
     def require_credit_account_credit(self):

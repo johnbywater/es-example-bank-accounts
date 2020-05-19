@@ -1,1 +1,2 @@
+pymysql==0.9.3
 eventsourcing[sqlalchemy,ray]==8.2.3
